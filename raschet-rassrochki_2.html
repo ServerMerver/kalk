@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Счёт до сентября 2031</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#f6f5f2; --surface:#fffefb; --surface-2:#efeee9;
+    --ink:#1d1f26; --ink-2:#4c515d; --ink-3:#787e8b;
+    --rule:#dedcd4; --rule-strong:#c5c2b8;
+    --acc1:#2a78d6;   /* счёт 1 */
+    --acc2:#1baf7a;   /* счёт 2 */
+    --debt:#eb6834;   /* долг */
+    --grid:#e6e4dd;
+    --ok:#2c5c40; --neg:#8d3520;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#15171b; --surface:#1c1f24; --surface-2:#23262c;
+      --ink:#eceae5; --ink-2:#b5b8be; --ink-3:#8b9098;
+      --rule:#31353c; --rule-strong:#474c55;
+      --acc1:#3987e5; --acc2:#199e70; --debt:#d95926;
+      --grid:#2b2f36; --ok:#8fc4a3; --neg:#e39179;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#15171b; --surface:#1c1f24; --surface-2:#23262c;
+    --ink:#eceae5; --ink-2:#b5b8be; --ink-3:#8b9098;
+    --rule:#31353c; --rule-strong:#474c55;
+    --acc1:#3987e5; --acc2:#199e70; --debt:#d95926;
+    --grid:#2b2f36; --ok:#8fc4a3; --neg:#e39179;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,sans-serif;font-size:15px;line-height:1.5;
+    margin:0;padding:0 18px 64px}
+  .wrap{max-width:900px;margin:0 auto}
+  header{padding:40px 0 18px}
+  h1{font-family:Spectral,Georgia,serif;font-weight:700;font-size:clamp(26px,4.4vw,34px);
+    margin:0 0 8px;letter-spacing:-.01em}
+  .sub{color:var(--ink-2);margin:0;max-width:60ch}
+
+  .panel{background:var(--surface);border:1px solid var(--rule);border-radius:5px;padding:18px 20px;margin-top:20px}
+
+  .ctl{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end}
+  .ctl .field{flex:1 1 280px;min-width:240px}
+  #preset button{padding:6px 10px;font-size:12.5px}
+  label{display:block;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+  .bigval{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--acc2);margin:6px 0 0}
+  .seg{display:flex;gap:0;border:1px solid var(--rule-strong);border-radius:4px;overflow:hidden;width:fit-content}
+  .seg button{font:inherit;font-size:13.5px;padding:7px 13px;background:var(--surface);color:var(--ink-2);
+    border:none;border-right:1px solid var(--rule);cursor:pointer}
+  .seg button:last-child{border-right:none}
+  .seg button[aria-pressed="true"]{background:var(--acc1);color:#fff}
+  .seg button:focus-visible{outline:2px solid var(--acc1);outline-offset:-2px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--rule);
+    border:1px solid var(--rule);border-radius:5px;overflow:hidden;margin-top:20px}
+  .kpi{background:var(--surface);padding:15px 17px}
+  .kpi dt{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+  .kpi dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:500;font-variant-numeric:tabular-nums}
+  .kpi dd small{display:block;font-family:"IBM Plex Sans",sans-serif;font-size:12.5px;color:var(--ink-3);margin-top:3px;font-weight:400}
+  .kpi.hero{background:var(--surface-2)}
+  .kpi.hero dd{font-size:24px;font-weight:600}
+  .pos{color:var(--ok)} .negv{color:var(--neg)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin:2px 0 10px;font-size:13.5px;color:var(--ink-2)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  .sw.line{height:3px;border-radius:2px}
+
+  figure{margin:0}
+  .chartbox{position:relative}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule-strong);
+    border-radius:4px;padding:9px 11px;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.13);
+    min-width:168px;opacity:0;transition:opacity .1s}
+  .tip.on{opacity:1}
+  .tip .tdate{font-weight:600;margin-bottom:6px}
+  .tip .trow{display:flex;justify-content:space-between;gap:14px;font-family:"IBM Plex Mono",monospace;
+    font-variant-numeric:tabular-nums;font-size:12.5px;padding:1px 0}
+  .tip .trow i{font-style:normal;font-family:"IBM Plex Sans",sans-serif;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+
+  h2{font-family:Spectral,Georgia,serif;font-size:20px;margin:34px 0 4px}
+  .note{color:var(--ink-2);font-size:14px;margin:0 0 14px;max-width:70ch}
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:5px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:520px}
+  th,td{padding:10px 15px;text-align:right;border-bottom:1px solid var(--rule)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500;
+    background:var(--surface-2);border-bottom:1px solid var(--rule-strong)}
+  tbody td{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+  tbody td:first-child{font-family:"IBM Plex Sans",sans-serif}
+  tbody tr:last-child td{border-bottom:none}
+  tr.sum td{font-weight:600;border-top:1px solid var(--rule-strong)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:1px}
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-3)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>html,body{margin:0}body{-webkit-text-size-adjust:100%}</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Счёт до сентября 2031</h1>
+  <p class="sub">Что происходит с деньгами от входа в сделку до окончательного расчёта по рассрочке.</p>
+</header>
+
+<div class="panel">
+  <div class="ctl">
+    <div class="field">
+      <label for="top">Пополняем второй счёт каждый месяц</label>
+      <div class="bigval" id="topv">150 000 ₽</div>
+      <input type="range" id="top" min="0" max="600000" step="25000" value="150000">
+    </div>
+    <div class="field" style="flex:0 1 auto">
+      <label for="src">Платежи 50 000 ₽ берём</label>
+      <div class="seg" id="src" role="group">
+        <button data-s="acc" aria-pressed="true">со счёта №1</button>
+        <button data-s="income" aria-pressed="false">из текущих доходов</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="rate">Ставка по вкладам</label>
+      <div class="seg" id="preset" role="group" style="margin-bottom:12px">
+        <button data-b="10" data-d="0" aria-pressed="false">10% весь срок</button>
+        <button data-b="10" data-d="1" aria-pressed="true">10 → 6%</button>
+        <button data-b="6" data-d="0" aria-pressed="false">6% весь срок</button>
+      </div>
+      <div class="bigval" id="ratev">10%</div>
+      <input type="range" id="rate" min="4" max="18" step="0.5" value="10">
+      <label style="margin-top:12px;text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="decl" checked style="accent-color:var(--acc1);width:15px;height:15px">
+        снижается на 1 п.п. каждый год
+      </label>
+    </div>
+  </div>
+</div>
+
+<dl class="kpis">
+  <div class="kpi"><dt>Счёт №1 к сен 2031</dt><dd id="k1">—<small>основной, не пополняется</small></dd></div>
+  <div class="kpi"><dt>Счёт №2 к сен 2031</dt><dd id="k2">—<small>накопительный</small></dd></div>
+  <div class="kpi"><dt>НДФЛ за весь срок</dt><dd id="k5">—<small>с процентов по двум счётам</small></dd></div>
+  <div class="kpi"><dt>Окончательный расчёт</dt><dd id="k3">—<small>30 сентября 2031</small></dd></div>
+  <div class="kpi hero"><dt>Остаётся на руках</dt><dd id="k4">—<small id="k4s">&nbsp;</small></dd></div>
+</dl>
+
+<h2>Деньги во времени</h2>
+<p class="note">Столбик — сколько накоплено на двух счетах, линия — сколько ещё должны застройщику. Точка, где столбик обгоняет линию, — момент, с которого рассрочку можно закрыть досрочно.</p>
+<div class="legend">
+  <span><i class="sw" style="background:var(--acc1)"></i>Счёт №1 — основной</span>
+  <span><i class="sw" style="background:var(--acc2)"></i>Счёт №2 — накопительный</span>
+  <span><i class="sw line" style="background:var(--debt)"></i>Остаток долга застройщику</span>
+</div>
+<figure class="chartbox">
+  <svg id="chart" viewBox="0 0 900 380" role="img" aria-labelledby="ctitle"><title id="ctitle">Накопления на двух счетах и остаток долга по месяцам с октября 2026 по сентябрь 2031</title></svg>
+  <div class="tip" id="tip"></div>
+</figure>
+
+<h2>Откуда что берётся</h2>
+<p class="note">Полная арифметика за весь срок — 59 месяцев от сделки в октябре 2026 до расчёта 30 сентября 2031. Если платежи идут из текущих доходов, счёт №1 их не финансирует и растёт быстрее.</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Статья</th><th>Счёт №1</th><th>Счёт №2</th></tr></thead>
+  <tbody>
+    <tr><td>Было в октябре 2026</td><td>24 000 000</td><td>3 000 000</td></tr>
+    <tr><td>Вход в сделку</td><td id="t1">−10 230 306</td><td>—</td></tr>
+    <tr><td>Пополнения за 59 месяцев</td><td>—</td><td id="t2">—</td></tr>
+    <tr><td>Начислено процентов</td><td id="t3">—</td><td id="t4">—</td></tr>
+    <tr><td>НДФЛ с процентов</td><td id="t8">—</td><td id="t9">—</td></tr>
+    <tr><td>Платежи застройщику со счёта №1</td><td id="t5">—</td><td>—</td></tr>
+    <tr class="sum"><td>К 30 сентября 2031</td><td id="t6">—</td><td id="t7">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Как растёт счёт №1</h2>
+<p class="note" id="g0"></p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Шаг</th><th>Сумма</th></tr></thead>
+  <tbody>
+    <tr><td>Осталось после входа в сделку</td><td>13 769 694</td></tr>
+    <tr><td>Начислено процентов за 59 месяцев</td><td id="g1">—</td></tr>
+    <tr><td>НДФЛ с процентов</td><td id="g2">—</td></tr>
+    <tr><td>Платежи застройщику со счёта №1</td><td id="g3">—</td></tr>
+    <tr class="sum"><td>Остаток на счёте №1 к сен 2031</td><td id="g4">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Как растёт счёт №2</h2>
+<p class="note" id="s0"></p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Шаг</th><th>Сумма</th></tr></thead>
+  <tbody>
+    <tr><td>Было в октябре 2026</td><td>3 000 000</td></tr>
+    <tr><td>Пополнения за 59 месяцев</td><td id="s1">—</td></tr>
+    <tr><td>Начислено процентов за 59 месяцев</td><td id="s2">—</td></tr>
+    <tr><td>НДФЛ с процентов</td><td id="s3">—</td></tr>
+    <tr class="sum"><td>Остаток на счёте №2 к сен 2031</td><td id="s4">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Налог на проценты</h2>
+<p class="note" id="taxnote"></p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Показатель</th><th>Значение</th></tr></thead>
+  <tbody>
+    <tr><td>Начислено процентов по двум счетам за срок</td><td id="x1">—</td></tr>
+    <tr><td>Необлагаемый минимум, 140 000 ₽ в год × 5 лет</td><td>700 000</td></tr>
+    <tr><td>НДФЛ по ставке 13%</td><td id="x2">—</td></tr>
+    <tr class="sum"><td>Проценты после налога</td><td id="x3">—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Куда уходят деньги</h2>
+<p class="note">Полный расчёт по сделке — не зависит от ползунка, это сумма договора.</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Платёж</th><th>Когда</th><th>Сумма</th></tr></thead>
+  <tbody>
+    <tr><td>Продавцу за уступку прав</td><td>день сделки</td><td>3 735 973</td></tr>
+    <tr><td>Застройщику — доплата на эскроу до 30%</td><td>день сделки</td><td>6 494 333</td></tr>
+    <tr><td>Застройщику — 50 000 ₽ в месяц</td><td>июн 2027 — сен 2031</td><td>2 550 000</td></tr>
+    <tr><td>Застройщику — платёж по графику</td><td>сен 2027</td><td>1 094 374</td></tr>
+    <tr><td>Застройщику — окончательный расчёт</td><td>30 сен 2031</td><td>22 625 320</td></tr>
+    <tr class="sum"><td>Всего за квартиру</td><td></td><td>36 500 000</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Из чего состоит вход</h2>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Платёж</th><th>Кому</th><th>Сумма</th></tr></thead>
+  <tbody>
+    <tr><td>Возврат внесённого за вычетом его потери</td><td>Продавцу</td><td>3 735 973</td></tr>
+    <tr><td>Доплата до 30% цены ДДУ</td><td>На эскроу</td><td>6 494 333</td></tr>
+    <tr class="sum"><td>Итого в день сделки</td><td></td><td>10 230 306</td></tr>
+  </tbody>
+</table>
+</div>
+
+<footer>
+  Цена ДДУ 37 528 133 ₽, внесено продавцом 4 764 106 ₽, требование застройщика для уступки 11 258 439 ₽, остаток долга после уступки 26 269 694 ₽. Платежи 50 000 ₽ в месяц с июня 2027 по сентябрь 2031 и 1 094 374 ₽ в сентябре 2027 списываются со счёта №1. Ставка по вкладам задаётся ползунком и при включённом снижении уменьшается на 1 процентный пункт в начале каждого следующего года. НДФЛ с процентов удерживается ежегодно, необлагаемый минимум — 140 000 ₽ в год, из ключевой ставки 14% на сентябрь 2026.
+</footer>
+</div>
+
+<script>
+const MAIN=24000000, SECOND=3000000, ENTRY=10230306, DEBT=26269694, SEP27=1094374, N=59;
+function ratesFor(base,decline){
+  const a=[]; for(let i=0;i<5;i++) a.push(Math.max(0.01,(base-(decline?i:0))/100));
+  return a;
+}
+const MON=["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+
+function idxDate(i){ // i=0 → окт 2026
+  const m0=9+i; return {y:2026+Math.floor(m0/12), m:m0%12};
+}
+function payAt(i){
+  const d=idxDate(i);
+  const after = (d.y>2027)||(d.y===2027&&d.m>=5);      // с июня 2027
+  const before = (d.y<2031)||(d.y===2031&&d.m<=8);     // по сентябрь 2031
+  if(!(after&&before)) return 0;
+  if(d.y===2027&&d.m===8) return SEP27;                // сентябрь 2027
+  return 50000;
+}
+function ndfl(interest){
+  const base=Math.max(0,interest-140000);
+  return base<2400000 ? base*0.13 : 2400000*0.13+(base-2400000)*0.15;
+}
+function model(topup,rs,fromIncome){
+  let a=MAIN-ENTRY, b=SECOND, ya=0, yb=0, paid=0, ia=0, ib=0, taxA=0, taxB=0, gross=MAIN-ENTRY, grA=0, grB=0, fromAccSum=0;
+  const pts=[{i:0,a,b,debt:DEBT}];
+  for(let i=1;i<=N;i++){
+    const r=rs[Math.min(Math.floor((i-1)/12),4)]/12;
+    gross+=gross*r;
+    const da=a*r, db=b*r;
+    a+=da; ya+=da; ia+=da; grA+=da;
+    b+=db; yb+=db; ib+=db; grB+=db;
+    b+=topup;
+    const p=payAt(i); const fromAcc = fromIncome ? (p===SEP27?p:0) : p;
+    a-=fromAcc; paid+=p; fromAccSum+=fromAcc;
+    if(i%12===0){ const ta=ndfl(ya), tb=ndfl(yb); a-=ta; b-=tb; taxA+=ta; taxB+=tb; ia-=ta; ib-=tb; ya=0; yb=0; }
+    pts.push({i,a,b,debt:DEBT-paid});
+  }
+  return {a,b,paid,final:DEBT-paid,pts,topSum:topup*N,intA:ia,intB:ib,taxA,taxB,gross,grA,grB,fromAccSum};
+}
+const fmt=n=>(n<0?"−":"")+Math.round(Math.abs(n)).toLocaleString("ru-RU").replace(/ /g," ");
+const fmtM=n=>(n<0?"−":"")+(Math.abs(n)/1e6).toFixed(2)+" млн";
+
+let topup=150000, rateBase=10, decline=true, fromIncome=false, res=null;
+
+function render(){
+  res=model(topup,ratesFor(rateBase,decline),fromIncome);
+  document.getElementById("ratev").textContent = decline
+    ? rateBase+"% → "+Math.max(1,rateBase-4)+"%"
+    : rateBase+"%";
+  document.getElementById("topv").textContent=fmt(topup)+" ₽";
+  document.getElementById("k1").firstChild.textContent=fmt(res.a);
+  document.getElementById("k2").firstChild.textContent=fmt(res.b);
+  document.getElementById("k5").firstChild.textContent="−"+fmt(res.taxA+res.taxB);
+  document.getElementById("k3").firstChild.textContent="−"+fmt(res.final);
+  const left=res.a+res.b-res.final;
+  const k4=document.getElementById("k4");
+  k4.firstChild.textContent=fmt(left);
+  k4.className=left>=0?"pos":"negv";
+  document.getElementById("k4s").textContent = left>=0 ? "после полного расчёта за квартиру" : "не хватает на расчёт";
+  document.getElementById("t2").textContent="+"+fmt(res.topSum);
+  document.getElementById("t3").textContent="+"+fmt(res.grA);
+  document.getElementById("t4").textContent="+"+fmt(res.grB);
+  document.getElementById("t8").textContent="−"+fmt(res.taxA);
+  document.getElementById("t9").textContent="−"+fmt(res.taxB);
+  document.getElementById("t6").textContent=fmt(res.a);
+  document.getElementById("t7").textContent=fmt(res.b);
+  document.getElementById("g1").textContent="+"+fmt(res.grA);
+  document.getElementById("g2").textContent="−"+fmt(res.taxA);
+  document.getElementById("g4").textContent=fmt(res.a);
+  document.getElementById("s1").textContent="+"+fmt(res.topSum);
+  document.getElementById("s2").textContent="+"+fmt(res.grB);
+  document.getElementById("s3").textContent="−"+fmt(res.taxB);
+  document.getElementById("s4").textContent=fmt(res.b);
+  document.getElementById("s0").innerHTML = topup>0
+    ? "Этот счёт только накапливает — платежи с него не идут. Из "+fmt(res.b)+" ₽ к сентябрю 2031 вы принесёте сами "+fmt(res.topSum)+" ₽, остальное — стартовые 3 млн и проценты на всё это."
+    : "Пополнений нет, поэтому счёт растёт только за счёт процентов на стартовые 3 млн.";
+  const gr=res.grA+res.grB, tx=res.taxA+res.taxB;
+  document.getElementById("x1").textContent="+"+fmt(gr);
+  document.getElementById("x2").textContent="−"+fmt(tx);
+  document.getElementById("x3").textContent=fmt(gr-tx);
+  document.getElementById("taxnote").innerHTML="Проценты по вкладам облагаются НДФЛ. Не облагается доход в пределах 1 млн ₽ × максимальная ключевая ставка года — при действующих 14% это 140 000 ₽ в год на человека. Всё, что выше, облагается по 13% (свыше 2,4 млн ₽ дохода в год — по 15%). Налог удерживается раз в год и в расчёте списывается со счёта, поэтому дальше проценты на него уже не начисляются. За весь срок это <b>"+fmt(tx)+" ₽</b>, то есть "+(gr>0?(tx/gr*100).toFixed(1):"0")+"% от начисленных процентов.";
+  document.getElementById("g3").textContent="−"+fmt(res.fromAccSum);
+  document.getElementById("t5").textContent="−"+fmt(res.fromAccSum);
+  document.getElementById("g0").innerHTML = fromIncome
+    ? "Сложный процент начисляется ежемесячно на весь остаток. Ежемесячные 50 000 ₽ идут из текущих доходов, поэтому со счёта уходит только платёж 1 094 374 ₽ в сентябре 2027 — и капитал почти не теряет ход. Без этого платежа он вырос бы до <b>"+fmt(res.gross)+" ₽</b>."
+    : "Сложный процент начисляется ежемесячно на весь остаток. Он на счёте есть — просто почти весь уходит на платежи застройщику и налог, поэтому баланс кажется неподвижным. Если бы платежей не было, те же деньги выросли бы до <b>"+fmt(res.gross)+" ₽</b>.";
+  draw();
+}
+
+const SVG="http://www.w3.org/2000/svg";
+function draw(){
+  const svg=document.getElementById("chart");
+  while(svg.childNodes.length>1) svg.removeChild(svg.lastChild);
+  const W=900,H=380,L=68,R=14,T=16,B=34;
+  const pw=W-L-R, ph=H-T-B;
+  const maxV=Math.max(...res.pts.map(p=>Math.max(p.a+p.b,p.debt)))*1.06;
+  const x=i=>L+pw*i/N, y=v=>T+ph-ph*v/maxV;
+  const el=(n,at)=>{const e=document.createElementNS(SVG,n);for(const k in at)e.setAttribute(k,at[k]);return e;};
+
+  // сетка
+  const step=10e6;
+  for(let v=0;v<=maxV;v+=step){
+    svg.appendChild(el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:"var(--grid)","stroke-width":1}));
+    svg.appendChild(el("text",{x:L-9,y:y(v)+4,"text-anchor":"end",fill:"var(--ink-3)","font-size":12,
+      "font-family":"IBM Plex Mono, monospace"})).textContent=(v/1e6)+" млн";
+  }
+  // столбики: счёт1 + счёт2
+  const bw=Math.max(2,pw/(N+1)-2.2);
+  res.pts.forEach(p=>{
+    const xc=x(p.i)-bw/2;
+    const y1=y(p.a), y2=y(p.a+p.b);
+    svg.appendChild(el("rect",{x:xc,y:y1,width:bw,height:Math.max(0,T+ph-y1),fill:"var(--acc1)"}));
+    if(p.b>0) svg.appendChild(el("rect",{x:xc,y:y2,width:bw,height:Math.max(0,y1-y2-2),fill:"var(--acc2)"}));
+  });
+  // линия долга
+  let d="";
+  res.pts.forEach((p,k)=>{ d+=(k?"L":"M")+x(p.i)+" "+y(p.debt); });
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--debt)","stroke-width":2.5,"stroke-linejoin":"round"}));
+
+  // ось X — годы
+  svg.appendChild(el("text",{x:x(0),y:H-12,"text-anchor":"start",fill:"var(--ink-3)","font-size":12,
+    "font-family":"IBM Plex Mono, monospace"})).textContent="окт 2026";
+  res.pts.forEach(p=>{
+    const dt=idxDate(p.i);
+    if(dt.m===0 && dt.y>2027 && x(p.i)<x(N)-70){
+      svg.appendChild(el("text",{x:x(p.i),y:H-12,"text-anchor":"middle",fill:"var(--ink-3)","font-size":12,
+        "font-family":"IBM Plex Mono, monospace"})).textContent="янв "+dt.y;
+    }
+  });
+  svg.appendChild(el("text",{x:x(N),y:H-12,"text-anchor":"end",fill:"var(--ink-3)","font-size":12,
+    "font-family":"IBM Plex Mono, monospace"})).textContent="сен 2031";
+
+  // hover
+  const cursor=el("line",{y1:T,y2:T+ph,stroke:"var(--rule-strong)","stroke-width":1,opacity:0});
+  svg.appendChild(cursor);
+  const hit=el("rect",{x:L,y:T,width:pw,height:ph,fill:"transparent"});
+  svg.appendChild(hit);
+  const tip=document.getElementById("tip");
+  const box=svg.parentNode;
+  function move(ev){
+    const r=svg.getBoundingClientRect();
+    const px=(ev.clientX-r.left)/r.width*W;
+    let i=Math.round((px-L)/pw*N); i=Math.max(0,Math.min(N,i));
+    const p=res.pts[i], dt=idxDate(i);
+    cursor.setAttribute("x1",x(i)); cursor.setAttribute("x2",x(i)); cursor.setAttribute("opacity",1);
+    tip.innerHTML='<div class="tdate">'+MON[dt.m]+" "+dt.y+'</div>'+
+      '<div class="trow"><i><span class="dot" style="background:var(--acc1)"></span>Счёт №1</i><b>'+fmt(p.a)+'</b></div>'+
+      '<div class="trow"><i><span class="dot" style="background:var(--acc2)"></span>Счёт №2</i><b>'+fmt(p.b)+'</b></div>'+
+      '<div class="trow"><i><span class="dot" style="background:var(--debt)"></span>Долг</i><b>'+fmt(p.debt)+'</b></div>';
+    tip.classList.add("on");
+    const left=Math.min(box.clientWidth-190, Math.max(0, x(i)/W*box.clientWidth-95));
+    tip.style.left=left+"px"; tip.style.top="6px";
+  }
+  hit.addEventListener("mousemove",move);
+  hit.addEventListener("touchmove",e=>{move(e.touches[0]);e.preventDefault();},{passive:false});
+  hit.addEventListener("mouseleave",()=>{tip.classList.remove("on");cursor.setAttribute("opacity",0);});
+}
+
+document.getElementById("top").addEventListener("input",e=>{topup=+e.target.value;render();});
+document.getElementById("src").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  fromIncome = b.dataset.s==="income";
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  render();
+});
+function syncPresets(){
+  [...document.getElementById("preset").children].forEach(b=>
+    b.setAttribute("aria-pressed", String(+b.dataset.b===rateBase && (b.dataset.d==="1")===decline)));
+}
+document.getElementById("rate").addEventListener("input",e=>{rateBase=+e.target.value;syncPresets();render();});
+document.getElementById("decl").addEventListener("change",e=>{decline=e.target.checked;syncPresets();render();});
+document.getElementById("preset").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  rateBase=+b.dataset.b; decline=b.dataset.d==="1";
+  document.getElementById("rate").value=rateBase;
+  document.getElementById("decl").checked=decline;
+  syncPresets(); render();
+});
+syncPresets();
+render();
+window.addEventListener("resize",()=>draw());
+</script>
+</body>
+</html>
